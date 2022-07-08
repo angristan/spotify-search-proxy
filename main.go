@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/go-redis/redis"
+	"github.com/labstack/echo-contrib/prometheus"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/sirupsen/logrus"
@@ -51,6 +52,8 @@ func main() {
 	e.GET("/search/:type/:query", handleSearch)
 
 	e.Use(middleware.Logger())
+	p := prometheus.NewPrometheus("echo", nil)
+	p.Use(e)
 
 	e.Logger.Fatal(e.Start(":" + config.Port))
 }
