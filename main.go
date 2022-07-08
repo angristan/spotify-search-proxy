@@ -81,9 +81,14 @@ func handleSearch(c echo.Context) error {
 	// Check if we have a cached result for this query
 	val, err := redisClient.Get(fmt.Sprintf("%s:%s", qType, query)).Result()
 	if err == nil {
-		var artist spotify.FullArtist
-		err = json.Unmarshal([]byte(val), &artist)
-		return c.JSON(200, artist)
+		logrus.WithField("query", query).Info("Found cached result")
+		var result interface{}
+		err = json.Unmarshal([]byte(val), &result)
+		if err != nil {
+			logrus.WithError(err).Error("Failed to unmarshal cached result")
+			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to unmarshal cached result")
+		}
+		return c.JSON(200, result)
 	}
 
 	// The Spotify SDK will re-encode it, so we need to decode it first
