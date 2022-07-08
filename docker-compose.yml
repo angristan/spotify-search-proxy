@@ -1,0 +1,18 @@
+version: "3.2"
+
+services:
+  api:
+    image: cosmtrek/air
+    ports:
+      - 1323:1323
+    volumes:
+      - ./:/app
+    env_file: .env
+    environment:
+      air_wd: /app
+    tty: true
+
+  redis:
+    image: 'redis:7-alpine'
+    ports:
+      - '127.0.0.1:6379:6379'
