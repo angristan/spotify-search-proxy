@@ -10,7 +10,7 @@ type Env struct {
 	SpotifyClientID     string `env:"SPOTIFY_CLIENT_ID" env-required:"true"`
 	SpotifyClientSecret string `env:"SPOTIFY_CLIENT_SECRET" env-required:"true"`
 
-	RedisAddr string `env:"REDIS_ADDR" env-required:"true"`
+	RedisURL string `env:"REDIS_URL" env-required:"true"`
 
 	Port string `env:"PORT" env-default:"1323"`
 

@@ -48,7 +48,7 @@ func main() {
 
 	// Setup middleware
 	redisStore := redis.New(redis.Config{
-		URL:   "redis://" + config.RedisAddr,
+		URL:   config.RedisURL,
 		Reset: false,
 	})
 
