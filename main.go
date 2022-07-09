@@ -4,8 +4,10 @@ import (
 	"context"
 	"net/http"
 	"net/url"
+	"sync"
 	"time"
 
+	"github.com/go-co-op/gocron"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cache"
 	"github.com/gofiber/fiber/v2/middleware/compress"
@@ -14,13 +16,13 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/gofiber/fiber/v2/middleware/requestid"
 	"github.com/gofiber/storage/redis"
-	"github.com/labstack/echo/v4"
 	"github.com/sirupsen/logrus"
 	"github.com/zmb3/spotify/v2"
 	spotifyauth "github.com/zmb3/spotify/v2/auth"
 	"golang.org/x/oauth2/clientcredentials"
 )
 
+var APIClientLock sync.RWMutex
 var APIClient *spotify.Client
 
 func main() {
@@ -45,6 +47,9 @@ func main() {
 
 	httpClient := spotifyauth.New().Client(ctx, token)
 	APIClient = spotify.New(httpClient)
+
+	s := gocron.NewScheduler(time.UTC)
+	s.Every(1).Minute().Do(renewToken)
 
 	// Setup middleware
 	redisStore := redis.New(redis.Config{
@@ -94,20 +99,28 @@ func handleSearch(c *fiber.Ctx) error {
 	case "track":
 		spotifyQueryType = spotify.SearchTypeTrack
 	default:
-		return echo.NewHTTPError(http.StatusBadRequest, "type must be one of artist, album, track")
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"error": "type must be one of artist, album, track",
+		})
 	}
 
 	// The Spotify SDK will re-encode it, so we need to decode it first
 	decodedQuery, err := url.QueryUnescape(query)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+			"error": err.Error(),
+		})
 	}
 
 	// Search for the query
+	APIClientLock.RLock()
 	results, err := APIClient.Search(context.Background(), decodedQuery, spotifyQueryType)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+			"error": err.Error(),
+		})
 	}
+	APIClientLock.RUnlock()
 
 	var result interface{}
 
@@ -133,8 +146,41 @@ func handleSearch(c *fiber.Ctx) error {
 	}
 
 	if result == nil {
-		return echo.NewHTTPError(http.StatusNotFound, "not found")
+		return c.Status(http.StatusNotFound).JSON(fiber.Map{
+			"error": "not found",
+		})
 	}
 
 	return c.JSON(result)
+}
+
+// Check if the token expires soon, and if so recreates an API client with a new token
+func renewToken() {
+	APIClientLock.Lock()
+	defer APIClientLock.Unlock()
+
+	spotifyToken, err := APIClient.Token()
+	if err != nil {
+		logrus.WithError(err).Error("Failed to refresh token")
+	}
+
+	if spotifyToken.Expiry.Sub(time.Now()) > time.Minute*5 {
+		logrus.Info("Token is still valid")
+		return
+	}
+
+	ctx := context.Background()
+	spotifyConfig := &clientcredentials.Config{
+		ClientID:     GetEnv().SpotifyClientID,
+		ClientSecret: GetEnv().SpotifyClientSecret,
+		TokenURL:     spotifyauth.TokenURL,
+	}
+	token, err := spotifyConfig.Token(ctx)
+	if err != nil {
+		logrus.WithError(err).Error("Failed to refresh token")
+		return
+	}
+
+	httpClient := spotifyauth.New().Client(ctx, token)
+	APIClient = spotify.New(httpClient)
 }
