@@ -2,16 +2,19 @@ package main
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/url"
 	"time"
 
-	"github.com/go-redis/redis"
-	"github.com/labstack/echo-contrib/prometheus"
+	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cache"
+	"github.com/gofiber/fiber/v2/middleware/compress"
+	"github.com/gofiber/fiber/v2/middleware/etag"
+	"github.com/gofiber/fiber/v2/middleware/logger"
+	"github.com/gofiber/fiber/v2/middleware/recover"
+	"github.com/gofiber/fiber/v2/middleware/requestid"
+	"github.com/gofiber/storage/redis"
 	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
 	"github.com/sirupsen/logrus"
 	"github.com/zmb3/spotify/v2"
 	spotifyauth "github.com/zmb3/spotify/v2/auth"
@@ -19,7 +22,6 @@ import (
 )
 
 var APIClient *spotify.Client
-var redisClient *redis.Client
 
 func main() {
 	err := LoadEnv()
@@ -29,6 +31,7 @@ func main() {
 
 	config := GetEnv()
 
+	// Create a new Spotify client
 	ctx := context.Background()
 	spotifyConfig := &clientcredentials.Config{
 		ClientID:     config.SpotifyClientID,
@@ -43,30 +46,43 @@ func main() {
 	httpClient := spotifyauth.New().Client(ctx, token)
 	APIClient = spotify.New(httpClient)
 
-	redisClient = redis.NewClient(&redis.Options{
-		Addr: config.RedisAddr,
+	// Setup middleware
+	redisStore := redis.New(redis.Config{
+		URL:   "redis://" + config.RedisAddr,
+		Reset: false,
 	})
 
-	e := echo.New()
+	app := fiber.New()
+	app.Use(logger.New())
+	app.Use(compress.New())
+	app.Use(recover.New())
+	app.Use(requestid.New())
+	app.Use(etag.New())
+	app.Use(cache.New(cache.Config{
+		Expiration: time.Hour * 24,
+		Storage:    redisStore,
+	}))
 
-	e.GET("/search/:type/:query", handleSearch)
+	// Setup routes
+	app.Get("/search/:type/:query", handleSearch)
 
-	e.Use(middleware.Logger())
-	p := prometheus.NewPrometheus("echo", nil)
-	p.Use(e)
-
-	e.Logger.Fatal(e.Start(":" + config.Port))
+	// Start server
+	logrus.Fatal(app.Listen(":" + config.Port))
 }
 
-func handleSearch(c echo.Context) error {
-	qType := c.Param("type")
+func handleSearch(c *fiber.Ctx) error {
+	qType := c.Params("type")
 	if qType == "" {
-		return c.JSON(400, "type is required")
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"error": "type is required",
+		})
 	}
 
-	query := c.Param("query")
+	query := c.Params("query")
 	if query == "" {
-		return c.JSON(400, "query is required")
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"error": "query is required",
+		})
 	}
 
 	var spotifyQueryType spotify.SearchType
@@ -79,19 +95,6 @@ func handleSearch(c echo.Context) error {
 		spotifyQueryType = spotify.SearchTypeTrack
 	default:
 		return echo.NewHTTPError(http.StatusBadRequest, "type must be one of artist, album, track")
-	}
-
-	// Check if we have a cached result for this query
-	val, err := redisClient.Get(fmt.Sprintf("%s:%s", qType, query)).Result()
-	if err == nil {
-		logrus.WithField("query", query).Info("Found cached result")
-		var result interface{}
-		err = json.Unmarshal([]byte(val), &result)
-		if err != nil {
-			logrus.WithError(err).Error("Failed to unmarshal cached result")
-			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to unmarshal cached result")
-		}
-		return c.JSON(200, result)
 	}
 
 	// The Spotify SDK will re-encode it, so we need to decode it first
@@ -133,15 +136,5 @@ func handleSearch(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusNotFound, "not found")
 	}
 
-	// Cache the result
-	resultBytes, err := json.Marshal(result)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
-	}
-	err = redisClient.Set(fmt.Sprintf("%s:%s", qType, query), resultBytes, time.Hour*24*7).Err()
-	if err != nil {
-		logrus.WithError(err).Error("failed to set redis key")
-	}
-
-	return c.JSON(http.StatusOK, result)
+	return c.JSON(result)
 }
