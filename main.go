@@ -49,7 +49,10 @@ func main() {
 	APIClient = spotify.New(httpClient)
 
 	s := gocron.NewScheduler(time.UTC)
-	s.Every(1).Minute().Do(renewToken)
+	_, err = s.Every(1).Minute().Do(renewToken)
+	if err != nil {
+		panic(err)
+	}
 
 	// Setup middleware
 	redisStore := redis.New(redis.Config{
@@ -163,8 +166,7 @@ func renewToken() {
 	if err != nil {
 		logrus.WithError(err).Error("Failed to refresh token")
 	}
-
-	if spotifyToken.Expiry.Sub(time.Now()) > time.Minute*5 {
+	if time.Until(spotifyToken.Expiry) < time.Minute*5 {
 		logrus.Info("Token is still valid")
 		return
 	}
