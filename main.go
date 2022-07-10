@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/go-co-op/gocron"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cache"
 	"github.com/gofiber/fiber/v2/middleware/compress"
@@ -48,11 +47,7 @@ func main() {
 	httpClient := spotifyauth.New().Client(ctx, token)
 	APIClient = spotify.New(httpClient)
 
-	s := gocron.NewScheduler(time.UTC)
-	_, err = s.Every(1).Minute().Do(renewToken)
-	if err != nil {
-		panic(err)
-	}
+	go renewToken()
 
 	// Setup middleware
 	redisStore := redis.New(redis.Config{
@@ -159,30 +154,38 @@ func handleSearch(c *fiber.Ctx) error {
 
 // Check if the token expires soon, and if so recreates an API client with a new token
 func renewToken() {
-	APIClientLock.Lock()
-	defer APIClientLock.Unlock()
+	ticker := time.NewTicker(time.Minute)
+	defer ticker.Stop()
 
-	spotifyToken, err := APIClient.Token()
-	if err != nil {
-		logrus.WithError(err).Error("Failed to refresh token")
-	}
-	if time.Until(spotifyToken.Expiry) < time.Minute*5 {
-		logrus.Info("Token is still valid")
-		return
-	}
+	for range ticker.C {
+		logrus.Info("Checking if Spotify token needs to be renewed")
+		APIClientLock.Lock()
+		defer APIClientLock.Unlock()
 
-	ctx := context.Background()
-	spotifyConfig := &clientcredentials.Config{
-		ClientID:     GetEnv().SpotifyClientID,
-		ClientSecret: GetEnv().SpotifyClientSecret,
-		TokenURL:     spotifyauth.TokenURL,
-	}
-	token, err := spotifyConfig.Token(ctx)
-	if err != nil {
-		logrus.WithError(err).Error("Failed to refresh token")
-		return
-	}
+		spotifyToken, err := APIClient.Token()
+		if err != nil {
+			logrus.WithError(err).Error("Failed to refresh token")
+		}
+		if time.Until(spotifyToken.Expiry) < time.Minute*5 {
+			logrus.Info("Token is still valid, no need to refresh")
+			return
+		}
 
-	httpClient := spotifyauth.New().Client(ctx, token)
-	APIClient = spotify.New(httpClient)
+		ctx := context.Background()
+		spotifyConfig := &clientcredentials.Config{
+			ClientID:     GetEnv().SpotifyClientID,
+			ClientSecret: GetEnv().SpotifyClientSecret,
+			TokenURL:     spotifyauth.TokenURL,
+		}
+		token, err := spotifyConfig.Token(ctx)
+		if err != nil {
+			logrus.WithError(err).Error("Failed to refresh token")
+			return
+		}
+
+		httpClient := spotifyauth.New().Client(ctx, token)
+		APIClient = spotify.New(httpClient)
+
+		logrus.Info("Token refreshed")
+	}
 }
