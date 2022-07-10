@@ -184,7 +184,7 @@ func renewToken() {
 		httpClient := spotifyauth.New().Client(ctx, token)
 		APIClientLock.Lock()
 		APIClient = spotify.New(httpClient)
-		defer APIClientLock.Unlock()
+		APIClientLock.Unlock()
 
 		logrus.Info("Token refreshed")
 	}
