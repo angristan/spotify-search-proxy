@@ -159,8 +159,6 @@ func renewToken() {
 
 	for range ticker.C {
 		logrus.Info("Checking if Spotify token needs to be renewed")
-		APIClientLock.Lock()
-		defer APIClientLock.Unlock()
 
 		spotifyToken, err := APIClient.Token()
 		if err != nil {
@@ -184,7 +182,9 @@ func renewToken() {
 		}
 
 		httpClient := spotifyauth.New().Client(ctx, token)
+		APIClientLock.Lock()
 		APIClient = spotify.New(httpClient)
+		defer APIClientLock.Unlock()
 
 		logrus.Info("Token refreshed")
 	}
