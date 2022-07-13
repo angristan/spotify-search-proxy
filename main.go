@@ -164,7 +164,7 @@ func renewToken() {
 		if err != nil {
 			logrus.WithError(err).Error("Failed to refresh token")
 		}
-		if time.Until(spotifyToken.Expiry) < time.Minute*5 {
+		if time.Until(spotifyToken.Expiry) > time.Minute*5 {
 			logrus.Info("Token is still valid, no need to refresh")
 			return
 		}
