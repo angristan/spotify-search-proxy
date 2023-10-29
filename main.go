@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/log"
 	"github.com/gofiber/fiber/v2/middleware/cache"
 	"github.com/gofiber/fiber/v2/middleware/compress"
 	"github.com/gofiber/fiber/v2/middleware/etag"
@@ -76,6 +77,7 @@ func main() {
 func handleSearch(c *fiber.Ctx) error {
 	qType := c.Params("type")
 	if qType == "" {
+		log.Error("Type is required")
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
 			"error": "type is required",
 		})
@@ -83,6 +85,7 @@ func handleSearch(c *fiber.Ctx) error {
 
 	query := c.Params("query")
 	if query == "" {
+		log.Error("Query is required")
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
 			"error": "query is required",
 		})
@@ -97,6 +100,7 @@ func handleSearch(c *fiber.Ctx) error {
 	case "track":
 		spotifyQueryType = spotify.SearchTypeTrack
 	default:
+		log.Error("Invalid type: " + qType)
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
 			"error": "type must be one of artist, album, track",
 		})
@@ -105,6 +109,7 @@ func handleSearch(c *fiber.Ctx) error {
 	// The Spotify SDK will re-encode it, so we need to decode it first
 	decodedQuery, err := url.QueryUnescape(query)
 	if err != nil {
+		log.Error(err)
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 			"error": err.Error(),
 		})
@@ -114,6 +119,7 @@ func handleSearch(c *fiber.Ctx) error {
 	APIClientLock.RLock()
 	results, err := APIClient.Search(context.Background(), decodedQuery, spotifyQueryType)
 	if err != nil {
+		log.Error(err)
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 			"error": err.Error(),
 		})
@@ -144,6 +150,7 @@ func handleSearch(c *fiber.Ctx) error {
 	}
 
 	if result == nil {
+		log.Error("No results found")
 		return c.Status(http.StatusNotFound).JSON(fiber.Map{
 			"error": "not found",
 		})
