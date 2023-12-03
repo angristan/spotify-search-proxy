@@ -7,8 +7,8 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/gofiber/fiber/v2/log"
-	"github.com/gorilla/mux"
 	"github.com/redis/go-redis/v9"
 	"github.com/zmb3/spotify/v2"
 	"go.opentelemetry.io/otel/attribute"
@@ -16,37 +16,21 @@ import (
 	otelTrace "go.opentelemetry.io/otel/trace"
 )
 
-func respondWithError(w http.ResponseWriter, code int, message string) {
-	respondWithJSON(w, code, map[string]string{"error": message})
-}
-
-func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
-	response, err := json.Marshal(payload)
-	if err != nil {
-		panic(err)
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(code)
-	w.Write(response)
-}
-
-func handleSearch(w http.ResponseWriter, r *http.Request) {
-	ctx, span := tracer.Start(r.Context(), "handleSearch")
+func handleSearch(c *gin.Context) {
+	ctx, span := tracer.Start(c.Request.Context(), "handleSearch")
 	defer span.End()
 
-	routeVars := mux.Vars(r)
-	qType := routeVars["type"]
+	qType := c.Param("type")
 	if qType == "" {
 		log.Error("Type is required")
-		respondWithError(w, http.StatusBadRequest, "type is required")
+		c.JSON(http.StatusBadRequest, gin.H{"error": "type is required"})
 		return
 	}
 
-	query := routeVars["query"]
+	query := c.Param("query")
 	if query == "" {
 		log.Error("Query is required")
-		respondWithError(w, http.StatusBadRequest, "query is required")
+		c.JSON(http.StatusBadRequest, gin.H{"error": "query is required"})
 		return
 	}
 
@@ -68,7 +52,7 @@ func handleSearch(w http.ResponseWriter, r *http.Request) {
 		log.Error(err)
 		span.SetStatus(codes.Error, "Invalid type: "+qType)
 		span.RecordError(err)
-		respondWithError(w, http.StatusBadRequest, "type must be one of artist, album, track")
+		c.JSON(http.StatusBadRequest, gin.H{"error": "type must be one of artist, album, track"})
 		return
 	}
 
@@ -80,14 +64,21 @@ func handleSearch(w http.ResponseWriter, r *http.Request) {
 		redisSpan.AddEvent("Cache hit", otelTrace.WithAttributes(attribute.String("key", key)))
 		var cachedResult interface{}
 		err = json.Unmarshal([]byte(val), &cachedResult)
-		respondWithJSON(w, http.StatusOK, cachedResult)
 		redisSpan.End()
-		return
+		if err == nil {
+			c.JSON(http.StatusOK, cachedResult)
+			return
+		} else {
+			log.Error(err)
+			span.SetStatus(codes.Error, err.Error())
+			span.RecordError(err)
+		}
 	} else {
 		if err != redis.Nil {
 			log.Error(err)
 			span.SetStatus(codes.Error, err.Error())
-			respondWithError(w, http.StatusInternalServerError, err.Error())
+			span.RecordError(err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
 
@@ -99,7 +90,9 @@ func handleSearch(w http.ResponseWriter, r *http.Request) {
 	decodedQuery, err := url.QueryUnescape(query)
 	if err != nil {
 		log.Error(err)
-		respondWithError(w, http.StatusInternalServerError, err.Error())
+		span.SetStatus(codes.Error, err.Error())
+		span.RecordError(err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -116,7 +109,8 @@ func handleSearch(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Error(err)
 		span.SetStatus(codes.Error, err.Error())
-		respondWithError(w, http.StatusInternalServerError, err.Error())
+		span.RecordError(err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	spotifySpan.AddEvent("Releasing lock")
@@ -150,7 +144,7 @@ func handleSearch(w http.ResponseWriter, r *http.Request) {
 	if result == nil {
 		log.Error("No results found")
 		span.SetStatus(codes.Error, "No results found")
-		respondWithError(w, http.StatusNotFound, "No results found")
+		c.JSON(http.StatusNotFound, gin.H{"error": "No results found"})
 		return
 	}
 
@@ -164,5 +158,6 @@ func handleSearch(w http.ResponseWriter, r *http.Request) {
 	}
 	redisSpan.End()
 
-	respondWithJSON(w, http.StatusOK, result)
+	c.JSON(http.StatusOK, result)
+	return
 }

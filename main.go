@@ -4,18 +4,16 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptrace"
-	"os"
 	"sync"
 
+	"github.com/gin-gonic/gin"
 	"github.com/gofiber/fiber/v2/log"
-	"github.com/gorilla/handlers"
-	"github.com/gorilla/mux"
 	"github.com/redis/go-redis/extra/redisotel/v9"
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 	"github.com/zmb3/spotify/v2"
 	spotifyauth "github.com/zmb3/spotify/v2/auth"
-	"go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/httptrace/otelhttptrace"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
@@ -89,16 +87,22 @@ func main() {
 		panic(err)
 	}
 
-	r := mux.NewRouter()
-	r.Use(otelmux.Middleware("spotify-search-proxy"))
-	r.HandleFunc("/search/{type}/{query}", handleSearch).Methods("GET")
-	http.Handle("/", r)
-	wrappedRouter := handlers.CombinedLoggingHandler(os.Stdout, r)
-	wrappedRouter = handlers.CompressHandler(wrappedRouter)
-	wrappedRouter = handlers.RecoveryHandler()(wrappedRouter)
-	wrappedRouter = handlers.ProxyHeaders(wrappedRouter)
-	err = http.ListenAndServe(":"+config.Port, wrappedRouter)
-	if err != nil {
-		panic(err)
-	}
+	// r := mux.NewRouter()
+	// r.Use(otelmux.Middleware("spotify-search-proxy"))
+	// r.HandleFunc("/search/{type}/{query}", handleSearch).Methods("GET")
+	// http.Handle("/", r)
+	// wrappedRouter := handlers.CombinedLoggingHandler(os.Stdout, r)
+	// wrappedRouter = handlers.CompressHandler(wrappedRouter)
+	// wrappedRouter = handlers.RecoveryHandler()(wrappedRouter)
+	// wrappedRouter = handlers.ProxyHeaders(wrappedRouter)
+	// err = http.ListenAndServe(":"+config.Port, wrappedRouter)
+	// if err != nil {
+	// 	panic(err)
+	// }
+
+	engine := gin.Default()
+	engine.Use(otelgin.Middleware("spotify-search-proxy"))
+	engine.GET("/search/:type/:query", handleSearch)
+
+	engine.Run(":" + config.Port)
 }
