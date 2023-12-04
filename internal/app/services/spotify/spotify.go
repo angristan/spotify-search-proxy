@@ -12,16 +12,20 @@ import (
 	otelTrace "go.opentelemetry.io/otel/trace"
 )
 
+type SpotifyClient interface {
+	Search(ctx context.Context, query string, searchType internalSpotify.SearchType) (interface{}, error)
+}
+
 type SpotifySearchService struct {
 	Tracer        otelTrace.Tracer
-	SpotifyClient *internalSpotify.SpotifyClient
-	Cache         *cache.Cache
+	SpotifyClient SpotifyClient
+	Cache         cache.Cache
 }
 
 func NewSpotifySearchService(
 	tracer otelTrace.Tracer,
-	spotifyClient *internalSpotify.SpotifyClient,
-	cache *cache.Cache,
+	spotifyClient SpotifyClient,
+	cache cache.Cache,
 ) SpotifySearchService {
 	return SpotifySearchService{
 		Tracer:        tracer,

@@ -11,11 +11,11 @@ import (
 	spotifyService "github.com/angristan/spotify-search-proxy/internal/app/services/spotify" // TODO
 	server "github.com/angristan/spotify-search-proxy/internal/infra/http"
 	"github.com/angristan/spotify-search-proxy/internal/infra/http/handlers"
-	"github.com/angristan/spotify-search-proxy/internal/infra/repository/cache"
+	redisCache "github.com/angristan/spotify-search-proxy/internal/infra/repository/cache/redis"
 	spotifyClient "github.com/angristan/spotify-search-proxy/internal/infra/repository/spotify" // TODO
 	"github.com/gofiber/fiber/v2/log"
 	"github.com/redis/go-redis/extra/redisotel/v9"
-	"github.com/redis/go-redis/v9"
+	goRedis "github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 	"github.com/zmb3/spotify/v2"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/httptrace/otelhttptrace"
@@ -27,7 +27,6 @@ import (
 var APIClientLock sync.RWMutex
 var APIClient *spotify.Client
 var tracer otelTrace.Tracer
-var redisClient *redis.Client
 
 func main() {
 	err := LoadEnv()
@@ -65,17 +64,22 @@ func main() {
 
 	// go renewToken(ctx)
 
-	redisClient = redis.NewClient(&redis.Options{
+	redisClient := goRedis.NewClient(&goRedis.Options{
 		Addr: config.RedisURL,
 	})
 
-	if err := redisotel.InstrumentTracing(redisClient); err != nil {
+	err = redisotel.InstrumentTracing(redisClient)
+	if err != nil {
 		panic(err)
 	}
 
-	cache := cache.NewCache(redisClient, 24*time.Hour)
+	cache := redisCache.NewCache(redisClient, 24*time.Hour)
 
-	spotifyClientConfig := spotifyClient.NewSpotifyClientConfig(config.SpotifyClientID, config.SpotifyClientSecret, tracedHTTPClient)
+	spotifyClientConfig := spotifyClient.NewSpotifyClientConfig(
+		config.SpotifyClientID,
+		config.SpotifyClientSecret,
+		tracedHTTPClient,
+	)
 
 	spotifyClient := spotifyClient.NewSpotifyClient(ctx, spotifyClientConfig)
 
