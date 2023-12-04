@@ -29,7 +29,7 @@ func NewSpotifyClientConfig(
 }
 
 type SpotifyClient struct {
-	client *spotify.Client
+	apiClient *spotify.Client
 }
 
 func NewSpotifyClient(ctx context.Context, config *SpotifyClientConfig) *SpotifyClient {
@@ -50,7 +50,7 @@ func NewSpotifyClient(ctx context.Context, config *SpotifyClientConfig) *Spotify
 	APIClient := spotify.New(httpClient)
 
 	return &SpotifyClient{
-		client: APIClient,
+		apiClient: APIClient,
 	}
 }
 
@@ -79,7 +79,7 @@ func (client *SpotifyClient) Search(ctx context.Context, query string, qType Sea
 	spotifyQueryType := qType.ToSpotifySearchType()
 
 	// TODO: client.client...
-	results, err := client.client.Search(ctx, query, spotifyQueryType)
+	results, err := client.apiClient.Search(ctx, query, spotifyQueryType)
 	if err != nil {
 		return nil, err
 	}

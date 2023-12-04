@@ -13,8 +13,8 @@ type SpotifySearchService interface {
 }
 
 type SpotifyHandler struct {
-	Tracer               otelTrace.Tracer
-	SpotifySearchService SpotifySearchService
+	tracer               otelTrace.Tracer
+	spotifySearchService SpotifySearchService
 }
 
 func NewSpotifyHandler(
@@ -22,13 +22,13 @@ func NewSpotifyHandler(
 	spotifySearchService SpotifySearchService,
 ) *SpotifyHandler {
 	return &SpotifyHandler{
-		Tracer:               tracer,
-		SpotifySearchService: spotifySearchService,
+		tracer:               tracer,
+		spotifySearchService: spotifySearchService,
 	}
 }
 
 func (handler *SpotifyHandler) Search(c *gin.Context) {
-	ctx, span := handler.Tracer.Start(c.Request.Context(), "handleSearch")
+	ctx, span := handler.tracer.Start(c.Request.Context(), "handleSearch")
 	defer span.End()
 
 	qType := c.Param("type")
@@ -43,7 +43,7 @@ func (handler *SpotifyHandler) Search(c *gin.Context) {
 		return
 	}
 
-	result, err := handler.SpotifySearchService.Search(ctx, query, qType)
+	result, err := handler.spotifySearchService.Search(ctx, query, qType)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

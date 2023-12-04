@@ -17,14 +17,14 @@ type Config struct {
 }
 
 type Handlers struct {
-	SpotifySearchHandler handlers.SpotifyHandler
+	spotifySearchHandler handlers.SpotifyHandler
 }
 
 func NewHandlers(
-	SpotifySearchHandler *handlers.SpotifyHandler,
+	spotifySearchHandler *handlers.SpotifyHandler,
 ) *Handlers {
 	return &Handlers{
-		SpotifySearchHandler: *SpotifySearchHandler,
+		spotifySearchHandler: *spotifySearchHandler,
 	}
 }
 
@@ -64,7 +64,7 @@ func NewServer(cfg Config) *Server {
 func routeBuilder(engine *gin.Engine, cfg Config) *gin.Engine {
 	r := configureMiddleware(engine, cfg)
 
-	r.GET("/search/:type/:query", cfg.Handlers.SpotifySearchHandler.Search)
+	r.GET("/search/:type/:query", cfg.Handlers.spotifySearchHandler.Search)
 
 	return r
 }
