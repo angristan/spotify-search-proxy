@@ -2,24 +2,26 @@ package main
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptrace"
 	"sync"
+	"time"
 
-	"github.com/gin-gonic/gin"
+	spotifyService "github.com/angristan/spotify-search-proxy/internal/app/services/spotify" // TODO
+	server "github.com/angristan/spotify-search-proxy/internal/infra/http"
+	"github.com/angristan/spotify-search-proxy/internal/infra/http/handlers"
+	"github.com/angristan/spotify-search-proxy/internal/infra/repository/cache"
+	spotifyClient "github.com/angristan/spotify-search-proxy/internal/infra/repository/spotify" // TODO
 	"github.com/gofiber/fiber/v2/log"
 	"github.com/redis/go-redis/extra/redisotel/v9"
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 	"github.com/zmb3/spotify/v2"
-	spotifyauth "github.com/zmb3/spotify/v2/auth"
-	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/httptrace/otelhttptrace"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
 	otelTrace "go.opentelemetry.io/otel/trace"
-	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/clientcredentials"
 )
 
 var APIClientLock sync.RWMutex
@@ -53,17 +55,6 @@ func main() {
 
 	tracer = tracerProvider.Tracer("spotify-search-proxy")
 
-	// Create a new Spotify client
-	spotifyConfig := &clientcredentials.Config{
-		ClientID:     config.SpotifyClientID,
-		ClientSecret: config.SpotifyClientSecret,
-		TokenURL:     spotifyauth.TokenURL,
-	}
-	token, err := spotifyConfig.Token(ctx)
-	if err != nil {
-		panic(err)
-	}
-
 	tracedHTTPClient := &http.Client{
 		Transport: otelhttp.NewTransport(
 			http.DefaultTransport,
@@ -72,12 +63,7 @@ func main() {
 			})),
 	}
 
-	ctx = context.WithValue(ctx, oauth2.HTTPClient, tracedHTTPClient)
-
-	httpClient := spotifyauth.New().Client(ctx, token)
-	APIClient = spotify.New(httpClient)
-
-	go renewToken(ctx)
+	// go renewToken(ctx)
 
 	redisClient = redis.NewClient(&redis.Options{
 		Addr: config.RedisURL,
@@ -87,22 +73,23 @@ func main() {
 		panic(err)
 	}
 
-	// r := mux.NewRouter()
-	// r.Use(otelmux.Middleware("spotify-search-proxy"))
-	// r.HandleFunc("/search/{type}/{query}", handleSearch).Methods("GET")
-	// http.Handle("/", r)
-	// wrappedRouter := handlers.CombinedLoggingHandler(os.Stdout, r)
-	// wrappedRouter = handlers.CompressHandler(wrappedRouter)
-	// wrappedRouter = handlers.RecoveryHandler()(wrappedRouter)
-	// wrappedRouter = handlers.ProxyHeaders(wrappedRouter)
-	// err = http.ListenAndServe(":"+config.Port, wrappedRouter)
-	// if err != nil {
-	// 	panic(err)
-	// }
+	cache := cache.NewCache(redisClient, 24*time.Hour)
 
-	engine := gin.Default()
-	engine.Use(otelgin.Middleware("spotify-search-proxy"))
-	engine.GET("/search/:type/:query", handleSearch)
+	spotifyClientConfig := spotifyClient.NewSpotifyClientConfig(config.SpotifyClientID, config.SpotifyClientSecret, tracedHTTPClient)
 
-	engine.Run(":" + config.Port)
+	spotifyClient := spotifyClient.NewSpotifyClient(ctx, spotifyClientConfig)
+
+	spotifyService := spotifyService.NewSpotifySearchService(tracer, spotifyClient, cache)
+
+	spotifyHandler := handlers.NewSpotifyHandler(tracer, spotifyService)
+
+	handlers := server.NewHandlers(spotifyHandler)
+
+	serverConfig := server.NewConfig(config.Port, handlers, false)
+
+	httpServer := server.NewServer(serverConfig)
+
+	if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		panic(err)
+	}
 }
