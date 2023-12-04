@@ -84,6 +84,9 @@ func (service SpotifySearchService) Search(ctx context.Context, query string, se
 
 	// Cache the result
 	marshaledResult, err := json.Marshal(result)
+	if err != nil {
+		return nil, err //TODO err
+	}
 	err = service.Cache.Set(ctx, key, marshaledResult, time.Hour*24)
 	if err != nil {
 		return nil, err //TODO err
