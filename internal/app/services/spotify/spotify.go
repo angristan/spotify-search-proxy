@@ -9,7 +9,7 @@ import (
 
 	"github.com/angristan/spotify-search-proxy/internal/infra/repository/cache"
 	internalSpotify "github.com/angristan/spotify-search-proxy/internal/infra/repository/spotify"
-	otelTrace "go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type SpotifyClient interface {
@@ -17,20 +17,20 @@ type SpotifyClient interface {
 }
 
 type SpotifySearchService struct {
-	Tracer        otelTrace.Tracer
-	SpotifyClient SpotifyClient
-	Cache         cache.Cache
+	tracer        trace.Tracer
+	spotifyClient SpotifyClient
+	cache         cache.Cache
 }
 
 func NewSpotifySearchService(
-	tracer otelTrace.Tracer,
+	tracer trace.Tracer,
 	spotifyClient SpotifyClient,
 	cache cache.Cache,
 ) SpotifySearchService {
 	return SpotifySearchService{
-		Tracer:        tracer,
-		SpotifyClient: spotifyClient,
-		Cache:         cache,
+		tracer:        tracer,
+		spotifyClient: spotifyClient,
+		cache:         cache,
 	}
 }
 
@@ -40,7 +40,10 @@ var (
 	SpotifyClientErr    = fmt.Errorf("Spotify client error")
 )
 
-func (service SpotifySearchService) Search(ctx context.Context, query string, searchType string) (interface{}, error) {
+func (s SpotifySearchService) Search(ctx context.Context, query string, searchType string) (interface{}, error) {
+	ctx, span := s.tracer.Start(ctx, "SpotifySearchService.Search")
+	defer span.End()
+
 	var spotifyQueryType internalSpotify.SearchType
 	switch searchType {
 	case "artist":
@@ -55,7 +58,7 @@ func (service SpotifySearchService) Search(ctx context.Context, query string, se
 
 	// Check if the result is cached
 	key := "spotify:" + searchType + ":" + query
-	val, err := service.Cache.Get(ctx, key)
+	val, err := s.cache.Get(ctx, key)
 	if err == nil && val != "" {
 		var cachedResult interface{}
 		err = json.Unmarshal([]byte(val), &cachedResult)
@@ -66,8 +69,6 @@ func (service SpotifySearchService) Search(ctx context.Context, query string, se
 		}
 	}
 
-	fmt.Printf("cc\n")
-
 	// The Spotify SDK will re-encode it, so we need to decode it first
 	// TODO move?
 	decodedQuery, err := url.QueryUnescape(query)
@@ -76,7 +77,7 @@ func (service SpotifySearchService) Search(ctx context.Context, query string, se
 	}
 
 	// Search for the query
-	result, err := service.SpotifyClient.Search(ctx, decodedQuery, spotifyQueryType)
+	result, err := s.spotifyClient.Search(ctx, decodedQuery, spotifyQueryType)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s", SpotifyClientErr, err.Error())
 	}
@@ -91,7 +92,7 @@ func (service SpotifySearchService) Search(ctx context.Context, query string, se
 	if err != nil {
 		return nil, err //TODO err
 	}
-	err = service.Cache.Set(ctx, key, marshaledResult, time.Hour*24)
+	err = s.cache.Set(ctx, key, marshaledResult, time.Hour*24)
 	if err != nil {
 		return nil, err //TODO err
 	}

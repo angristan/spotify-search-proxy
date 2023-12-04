@@ -6,6 +6,7 @@ import (
 
 	"github.com/zmb3/spotify/v2"
 	spotifyauth "github.com/zmb3/spotify/v2/auth"
+	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/clientcredentials"
 )
@@ -14,21 +15,25 @@ type SpotifyClientConfig struct {
 	ClientID     string
 	ClientSecret string
 	HTTPClient   *http.Client
+	tracer       trace.Tracer
 }
 
 func NewSpotifyClientConfig(
 	clientID string,
 	clientSecret string,
 	httpClient *http.Client,
+	tracer trace.Tracer,
 ) *SpotifyClientConfig {
 	return &SpotifyClientConfig{
 		ClientID:     clientID,
 		ClientSecret: clientSecret,
 		HTTPClient:   httpClient,
+		tracer:       tracer,
 	}
 }
 
 type SpotifyClient struct {
+	tracer    trace.Tracer
 	apiClient *spotify.Client
 }
 
@@ -51,6 +56,7 @@ func NewSpotifyClient(ctx context.Context, config *SpotifyClientConfig) *Spotify
 
 	return &SpotifyClient{
 		apiClient: APIClient,
+		tracer:    config.tracer,
 	}
 }
 
@@ -76,6 +82,9 @@ func (st SearchType) ToSpotifySearchType() spotify.SearchType {
 }
 
 func (client *SpotifyClient) Search(ctx context.Context, query string, qType SearchType) (interface{}, error) {
+	ctx, span := client.tracer.Start(ctx, "SpotifyClient.Search")
+	defer span.End()
+
 	spotifyQueryType := qType.ToSpotifySearchType()
 
 	// TODO: client.client...

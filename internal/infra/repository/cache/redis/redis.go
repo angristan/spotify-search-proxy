@@ -7,6 +7,7 @@ import (
 
 	"github.com/angristan/spotify-search-proxy/internal/infra/repository/cache"
 	"github.com/redis/go-redis/v9"
+	"go.opentelemetry.io/otel/trace"
 )
 
 var (
@@ -14,21 +15,27 @@ var (
 )
 
 type RedisCache struct {
+	tracer      trace.Tracer
 	redisClient *redis.Client
 	defaultTTL  time.Duration
 }
 
 func NewCache(
+	tracer trace.Tracer,
 	redisClient *redis.Client,
 	defaultTTL time.Duration,
 ) cache.Cache {
 	return &RedisCache{
+		tracer:      tracer,
 		redisClient: redisClient,
 		defaultTTL:  defaultTTL,
 	}
 }
 
 func (c *RedisCache) Get(ctx context.Context, key string) (string, error) {
+	ctx, span := c.tracer.Start(ctx, "RedisCache.Get")
+	defer span.End()
+
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
@@ -45,6 +52,9 @@ func (c *RedisCache) Get(ctx context.Context, key string) (string, error) {
 }
 
 func (c *RedisCache) Set(ctx context.Context, key string, value []byte, ttl time.Duration) error {
+	ctx, span := c.tracer.Start(ctx, "RedisCache.Set")
+	defer span.End()
+
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 

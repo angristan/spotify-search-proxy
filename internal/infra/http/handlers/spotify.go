@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	otelTrace "go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type SpotifySearchService interface {
@@ -13,12 +13,12 @@ type SpotifySearchService interface {
 }
 
 type SpotifyHandler struct {
-	tracer               otelTrace.Tracer
+	tracer               trace.Tracer
 	spotifySearchService SpotifySearchService
 }
 
 func NewSpotifyHandler(
-	tracer otelTrace.Tracer,
+	tracer trace.Tracer,
 	spotifySearchService SpotifySearchService,
 ) *SpotifyHandler {
 	return &SpotifyHandler{
@@ -27,8 +27,8 @@ func NewSpotifyHandler(
 	}
 }
 
-func (handler *SpotifyHandler) Search(c *gin.Context) {
-	ctx, span := handler.tracer.Start(c.Request.Context(), "handleSearch")
+func (h *SpotifyHandler) Search(c *gin.Context) {
+	ctx, span := h.tracer.Start(c.Request.Context(), "SpotifyHandler.Search")
 	defer span.End()
 
 	qType := c.Param("type")
@@ -43,7 +43,7 @@ func (handler *SpotifyHandler) Search(c *gin.Context) {
 		return
 	}
 
-	result, err := handler.spotifySearchService.Search(ctx, query, qType)
+	result, err := h.spotifySearchService.Search(ctx, query, qType)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
