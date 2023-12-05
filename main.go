@@ -72,7 +72,7 @@ func main() {
 		panic(err)
 	}
 
-	cache := redisCache.NewCache(tracer, redisClient, 24*time.Hour)
+	cache := redisCache.NewCache(tracer, redisClient, 1*time.Minute)
 
 	spotifyClientConfig := spotifyClient.NewSpotifyClientConfig(
 		config.SpotifyClientID,

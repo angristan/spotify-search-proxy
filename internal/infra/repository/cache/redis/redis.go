@@ -7,6 +7,7 @@ import (
 
 	"github.com/angristan/spotify-search-proxy/internal/infra/repository/cache"
 	"github.com/redis/go-redis/v9"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -61,6 +62,7 @@ func (c *RedisCache) Set(ctx context.Context, key string, value []byte, ttl time
 	if ttl == 0 {
 		ttl = c.defaultTTL
 	}
+	span.SetAttributes(attribute.Int64("ttl", int64(ttl.Seconds())))
 
 	return c.redisClient.Set(ctx, key, value, ttl).Err()
 }
