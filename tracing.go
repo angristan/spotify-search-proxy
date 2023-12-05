@@ -12,24 +12,27 @@ import (
 func newSpanExporter(ctx context.Context) (trace.SpanExporter, error) {
 	return otlptracehttp.New(ctx,
 		otlptracehttp.WithInsecure(),
-		otlptracehttp.WithEndpoint("tempo:4318"))
+		otlptracehttp.WithEndpoint("tempo:4318"), //TODO: Use env var
+	)
 }
 
 func newTracerProvider(spanExporter trace.SpanExporter) (*trace.TracerProvider, error) {
-	r, err := resource.Merge(
-		resource.Default(),
-		resource.NewWithAttributes(
-			semconv.SchemaURL,
-			semconv.ServiceName("spotify-search-proxy"),
-		),
+	resource, err := resource.New(context.Background(),
+		resource.WithFromEnv(),
+		resource.WithProcess(),
+		resource.WithOS(),
+		resource.WithContainer(),
+		resource.WithHost(),
+		resource.WithAttributes(semconv.ServiceName("spotify-search-proxy")),
+		resource.WithSchemaURL(semconv.SchemaURL),
 	)
-
 	if err != nil {
 		return nil, err
 	}
 
 	return trace.NewTracerProvider(
 		trace.WithBatcher(spanExporter),
-		trace.WithResource(r),
+		trace.WithResource(resource),
+		trace.WithSampler(trace.ParentBased(trace.AlwaysSample())),
 	), nil
 }

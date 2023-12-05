@@ -64,8 +64,6 @@ func (s SpotifySearchService) Search(ctx context.Context, query string, searchTy
 		err = json.Unmarshal([]byte(val), &cachedResult)
 		if err == nil {
 			return cachedResult, nil
-		} else {
-			return nil, err //TODO err
 		}
 	}
 
