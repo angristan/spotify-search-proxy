@@ -21,12 +21,10 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/httptrace/otelhttptrace"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/trace"
 )
 
 var APIClientLock sync.RWMutex
 var APIClient *spotify.Client
-var tracer trace.Tracer
 
 func main() {
 	err := LoadEnv()
@@ -52,7 +50,7 @@ func main() {
 
 	otel.SetTracerProvider(tracerProvider)
 
-	tracer = tracerProvider.Tracer("spotify-search-proxy")
+	tracer := tracerProvider.Tracer("spotify-search-proxy")
 
 	tracedHTTPClient := &http.Client{
 		Transport: otelhttp.NewTransport(

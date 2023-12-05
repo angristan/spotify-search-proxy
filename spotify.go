@@ -12,8 +12,6 @@ import (
 
 // Check if the token expires soon, and if so recreates an API client with a new token
 func renewToken(ctx context.Context) {
-	ctx, span := tracer.Start(ctx, "renewToken")
-	defer span.End()
 	ticker := time.NewTicker(time.Second * 10)
 	defer ticker.Stop()
 
