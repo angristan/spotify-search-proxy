@@ -8,12 +8,11 @@ import (
 	"time"
 
 	"github.com/angristan/spotify-search-proxy/internal/infra/repository/cache"
-	internalSpotify "github.com/angristan/spotify-search-proxy/internal/infra/repository/spotify"
 	"go.opentelemetry.io/otel/trace"
 )
 
 type SpotifyClient interface {
-	Search(ctx context.Context, query string, searchType internalSpotify.SearchType) (interface{}, error)
+	Search(ctx context.Context, query string, searchType string) (interface{}, error)
 }
 
 type SpotifySearchService struct {
@@ -35,7 +34,7 @@ func NewSpotifySearchService(
 }
 
 var (
-	InvalidQueryTypeErr = fmt.Errorf("Invalid type")
+	InvalidQueryTypeErr = fmt.Errorf("Invalid query type")
 	NoResultsFoundErr   = fmt.Errorf("No results found")
 	SpotifyClientErr    = fmt.Errorf("Spotify client error")
 )
@@ -44,14 +43,9 @@ func (s SpotifySearchService) Search(ctx context.Context, query string, searchTy
 	ctx, span := s.tracer.Start(ctx, "SpotifySearchService.Search")
 	defer span.End()
 
-	var spotifyQueryType internalSpotify.SearchType
+	// Check if the query type is valid
 	switch searchType {
-	case "artist":
-		spotifyQueryType = internalSpotify.SearchTypeArtist
-	case "album":
-		spotifyQueryType = internalSpotify.SearchTypeAlbum
-	case "track":
-		spotifyQueryType = internalSpotify.SearchTypeTrack
+	case "artist", "album", "track":
 	default:
 		return nil, fmt.Errorf("%w: %s", InvalidQueryTypeErr, searchType)
 	}
@@ -75,7 +69,7 @@ func (s SpotifySearchService) Search(ctx context.Context, query string, searchTy
 	}
 
 	// Search for the query
-	result, err := s.spotifyClient.Search(ctx, decodedQuery, spotifyQueryType)
+	result, err := s.spotifyClient.Search(ctx, decodedQuery, searchType)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s", SpotifyClientErr, err.Error())
 	}

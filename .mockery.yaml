@@ -1,0 +1,10 @@
+with-expecter: True
+dir: '{{.InterfaceDir}}/mocks'
+mockname: 'Mock{{.InterfaceName}}'
+outpkg: 'mock_{{.PackageName}}'
+filename: 'Mock{{.InterfaceName}}.go'
+all: True
+packages:
+  github.com/angristan/spotify-search-proxy:
+    config:
+      recursive: True

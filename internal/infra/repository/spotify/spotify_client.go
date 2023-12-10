@@ -2,9 +2,10 @@ package spotify
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
-	"github.com/zmb3/spotify/v2"
+	spotifyLib "github.com/zmb3/spotify/v2"
 	spotifyauth "github.com/zmb3/spotify/v2/auth"
 	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/oauth2"
@@ -34,7 +35,7 @@ func NewSpotifyClientConfig(
 
 type SpotifyClient struct {
 	tracer    trace.Tracer
-	apiClient *spotify.Client
+	apiClient *spotifyLib.Client
 }
 
 func NewSpotifyClient(ctx context.Context, config *SpotifyClientConfig) *SpotifyClient {
@@ -52,7 +53,7 @@ func NewSpotifyClient(ctx context.Context, config *SpotifyClientConfig) *Spotify
 	ctx = context.WithValue(ctx, oauth2.HTTPClient, config.HTTPClient)
 
 	httpClient := spotifyauth.New().Client(ctx, token)
-	APIClient := spotify.New(httpClient)
+	APIClient := spotifyLib.New(httpClient)
 
 	return &SpotifyClient{
 		apiClient: APIClient,
@@ -68,27 +69,43 @@ const (
 	SearchTypeTrack             = 1 << iota
 )
 
-func (st SearchType) ToSpotifySearchType() spotify.SearchType {
+func (st SearchType) ToSpotifySearchType() spotifyLib.SearchType {
 	switch st {
 	case SearchTypeAlbum:
-		return spotify.SearchTypeAlbum
+		return spotifyLib.SearchTypeAlbum
 	case SearchTypeArtist:
-		return spotify.SearchTypeArtist
+		return spotifyLib.SearchTypeArtist
 	case SearchTypeTrack:
-		return spotify.SearchTypeTrack
+		return spotifyLib.SearchTypeTrack
 	}
 
-	return spotify.SearchTypeArtist //TODO
+	return spotifyLib.SearchTypeArtist //TODO
 }
 
-func (client *SpotifyClient) Search(ctx context.Context, query string, qType SearchType) (interface{}, error) {
+var (
+	InvalidQueryTypeErr = fmt.Errorf("Invalid type")
+)
+
+func (client *SpotifyClient) Search(ctx context.Context, query string, qType string) (interface{}, error) {
 	ctx, span := client.tracer.Start(ctx, "SpotifyClient.Search")
 	defer span.End()
 
-	spotifyQueryType := qType.ToSpotifySearchType()
+	var spotifyQueryType SearchType
+	switch qType {
+	case "artist":
+		spotifyQueryType = SearchTypeArtist
+	case "album":
+		spotifyQueryType = SearchTypeAlbum
+	case "track":
+		spotifyQueryType = SearchTypeTrack
+	default:
+		return nil, fmt.Errorf("%w: %s", InvalidQueryTypeErr, qType)
+	}
+
+	spotifyQueryType2 := spotifyQueryType.ToSpotifySearchType()
 
 	// TODO: client.client...
-	results, err := client.apiClient.Search(ctx, query, spotifyQueryType)
+	results, err := client.apiClient.Search(ctx, query, spotifyQueryType2)
 	if err != nil {
 		return nil, err
 	}
@@ -96,20 +113,20 @@ func (client *SpotifyClient) Search(ctx context.Context, query string, qType Sea
 	// TODO: better way to do it?
 	var result interface{}
 
-	switch spotifyQueryType {
-	case spotify.SearchTypeArtist:
+	switch spotifyQueryType2 {
+	case spotifyLib.SearchTypeArtist:
 		if results.Artists != nil {
 			if len(results.Artists.Artists) > 0 {
 				result = results.Artists.Artists[0]
 			}
 		}
-	case spotify.SearchTypeAlbum:
+	case spotifyLib.SearchTypeAlbum:
 		if results.Albums != nil {
 			if len(results.Albums.Albums) > 0 {
 				result = results.Albums.Albums[0]
 			}
 		}
-	case spotify.SearchTypeTrack:
+	case spotifyLib.SearchTypeTrack:
 		if results.Tracks != nil {
 			if len(results.Tracks.Tracks) > 0 {
 				result = results.Tracks.Tracks[0]

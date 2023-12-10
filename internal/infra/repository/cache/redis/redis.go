@@ -5,7 +5,6 @@ import (
 	"errors"
 	"time"
 
-	"github.com/angristan/spotify-search-proxy/internal/infra/repository/cache"
 	"github.com/redis/go-redis/v9"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -25,7 +24,7 @@ func NewCache(
 	tracer trace.Tracer,
 	redisClient *redis.Client,
 	defaultTTL time.Duration,
-) cache.Cache {
+) *RedisCache {
 	return &RedisCache{
 		tracer:      tracer,
 		redisClient: redisClient,
