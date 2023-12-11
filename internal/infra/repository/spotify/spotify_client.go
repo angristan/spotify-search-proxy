@@ -13,9 +13,9 @@ import (
 )
 
 type SpotifyClientConfig struct {
-	ClientID     string
-	ClientSecret string
-	HTTPClient   *http.Client
+	clientID     string
+	clientSecret string
+	httpClient   *http.Client
 	tracer       trace.Tracer
 }
 
@@ -26,9 +26,9 @@ func NewSpotifyClientConfig(
 	tracer trace.Tracer,
 ) *SpotifyClientConfig {
 	return &SpotifyClientConfig{
-		ClientID:     clientID,
-		ClientSecret: clientSecret,
-		HTTPClient:   httpClient,
+		clientID:     clientID,
+		clientSecret: clientSecret,
+		httpClient:   httpClient,
 		tracer:       tracer,
 	}
 }
@@ -38,10 +38,10 @@ type SpotifyClient struct {
 	apiClient *spotifyLib.Client
 }
 
-func NewSpotifyClient(ctx context.Context, config *SpotifyClientConfig) *SpotifyClient {
+func New(ctx context.Context, config *SpotifyClientConfig) *SpotifyClient {
 	spotifyConfig := &clientcredentials.Config{
-		ClientID:     config.ClientID,
-		ClientSecret: config.ClientSecret,
+		ClientID:     config.clientID,
+		ClientSecret: config.clientSecret,
 		TokenURL:     spotifyauth.TokenURL,
 	}
 
@@ -50,7 +50,7 @@ func NewSpotifyClient(ctx context.Context, config *SpotifyClientConfig) *Spotify
 		panic(err) //TODO
 	}
 
-	ctx = context.WithValue(ctx, oauth2.HTTPClient, config.HTTPClient)
+	ctx = context.WithValue(ctx, oauth2.HTTPClient, config.httpClient)
 
 	httpClient := spotifyauth.New().Client(ctx, token)
 	APIClient := spotifyLib.New(httpClient)

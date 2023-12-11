@@ -20,7 +20,7 @@ type RedisCache struct {
 	defaultTTL  time.Duration
 }
 
-func NewCache(
+func New(
 	tracer trace.Tracer,
 	redisClient *redis.Client,
 	defaultTTL time.Duration,

@@ -10,7 +10,7 @@ import (
 
 	spotifyService "github.com/angristan/spotify-search-proxy/internal/app/services/spotify"
 	server "github.com/angristan/spotify-search-proxy/internal/infra/http"
-	"github.com/angristan/spotify-search-proxy/internal/infra/http/handlers"
+	spotifyHandler "github.com/angristan/spotify-search-proxy/internal/infra/http/handlers/spotify"
 	redisCache "github.com/angristan/spotify-search-proxy/internal/infra/repository/cache/redis"
 	spotifyClient "github.com/angristan/spotify-search-proxy/internal/infra/repository/spotify"
 	"github.com/gofiber/fiber/v2/log"
@@ -72,7 +72,7 @@ func main() {
 		panic(err)
 	}
 
-	cache := redisCache.NewCache(tracer, redisClient, 1*time.Minute)
+	cache := redisCache.New(tracer, redisClient, 1*time.Minute)
 
 	spotifyClientConfig := spotifyClient.NewSpotifyClientConfig(
 		config.SpotifyClientID,
@@ -81,17 +81,15 @@ func main() {
 		tracer,
 	)
 
-	spotifyClient := spotifyClient.NewSpotifyClient(ctx, spotifyClientConfig)
+	spotifyClient := spotifyClient.New(ctx, spotifyClientConfig)
 
-	spotifyService := spotifyService.NewSpotifySearchService(tracer, spotifyClient, cache)
+	spotifyService := spotifyService.New(tracer, spotifyClient, cache)
 
-	spotifyHandler := handlers.NewSpotifyHandler(tracer, spotifyService)
+	spotifyHandler := spotifyHandler.New(tracer, spotifyService)
 
-	handlers := server.NewHandlers(spotifyHandler)
+	serverConfig := server.NewConfig(config.Port, false)
 
-	serverConfig := server.NewConfig(config.Port, handlers, false)
-
-	httpServer := server.NewServer(serverConfig)
+	httpServer := server.New(serverConfig, spotifyHandler)
 
 	if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		panic(err)

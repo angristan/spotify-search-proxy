@@ -7,8 +7,7 @@ import (
 	"time"
 
 	"github.com/angristan/spotify-search-proxy/internal/app/services/spotify"
-	mock_spotify "github.com/angristan/spotify-search-proxy/internal/app/services/spotify/mocks"
-	mock_cache "github.com/angristan/spotify-search-proxy/internal/infra/repository/cache/mocks"
+	"github.com/angristan/spotify-search-proxy/internal/app/services/spotify/mocks"
 	"github.com/angristan/spotify-search-proxy/internal/infra/repository/cache/redis"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -16,10 +15,10 @@ import (
 )
 
 func TestSpotifySearchService_Search(t *testing.T) {
-	mockedSpotifyClient := &mock_spotify.MockSpotifyClient{}
-	mockedCache := &mock_cache.MockCache{}
+	mockedSpotifyClient := &mocks.MockSpotifyClient{}
+	mockedCache := &mocks.MockCache{}
 
-	s := spotify.NewSpotifySearchService(
+	s := spotify.New(
 		otel.Tracer("test"),
 		mockedSpotifyClient,
 		mockedCache,

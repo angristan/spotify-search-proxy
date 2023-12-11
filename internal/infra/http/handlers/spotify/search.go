@@ -1,31 +1,10 @@
-package handlers
+package spotify
 
 import (
-	"context"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"go.opentelemetry.io/otel/trace"
 )
-
-type SpotifySearchService interface {
-	Search(ctx context.Context, query string, searchType string) (interface{}, error)
-}
-
-type SpotifyHandler struct {
-	tracer               trace.Tracer
-	spotifySearchService SpotifySearchService
-}
-
-func NewSpotifyHandler(
-	tracer trace.Tracer,
-	spotifySearchService SpotifySearchService,
-) *SpotifyHandler {
-	return &SpotifyHandler{
-		tracer:               tracer,
-		spotifySearchService: spotifySearchService,
-	}
-}
 
 func (h *SpotifyHandler) Search(c *gin.Context) {
 	ctx, span := h.tracer.Start(c.Request.Context(), "SpotifyHandler.Search")

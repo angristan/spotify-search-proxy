@@ -2,7 +2,7 @@ version: "3.2"
 
 services:
   api:
-    image: cosmtrek/air
+    image: cosmtrek/air:v1.49.0
     ports:
       - 1323:1323
     volumes:
@@ -19,7 +19,7 @@ services:
       - "127.0.0.1:6379:6379"
 
   tempo:
-    image: grafana/tempo:latest
+    image: grafana/tempo:2.3.1
     command: ["-config.file=/etc/tempo.yaml"]
     volumes:
       - ./infra/tempo.yaml:/etc/tempo.yaml

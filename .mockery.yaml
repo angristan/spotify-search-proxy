@@ -1,7 +1,7 @@
 with-expecter: True
 dir: '{{.InterfaceDir}}/mocks'
 mockname: 'Mock{{.InterfaceName}}'
-outpkg: 'mock_{{.PackageName}}'
+outpkg: 'mocks'
 filename: 'Mock{{.InterfaceName}}.go'
 all: True
 packages:

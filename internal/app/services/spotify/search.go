@@ -6,37 +6,6 @@ import (
 	"fmt"
 	"net/url"
 	"time"
-
-	"github.com/angristan/spotify-search-proxy/internal/infra/repository/cache"
-	"go.opentelemetry.io/otel/trace"
-)
-
-type SpotifyClient interface {
-	Search(ctx context.Context, query string, searchType string) (interface{}, error)
-}
-
-type SpotifySearchService struct {
-	tracer        trace.Tracer
-	spotifyClient SpotifyClient
-	cache         cache.Cache
-}
-
-func NewSpotifySearchService(
-	tracer trace.Tracer,
-	spotifyClient SpotifyClient,
-	cache cache.Cache,
-) SpotifySearchService {
-	return SpotifySearchService{
-		tracer:        tracer,
-		spotifyClient: spotifyClient,
-		cache:         cache,
-	}
-}
-
-var (
-	InvalidQueryTypeErr = fmt.Errorf("Invalid query type")
-	NoResultsFoundErr   = fmt.Errorf("No results found")
-	SpotifyClientErr    = fmt.Errorf("Spotify client error")
 )
 
 func (s SpotifySearchService) Search(ctx context.Context, query string, searchType string) (interface{}, error) {
@@ -76,8 +45,6 @@ func (s SpotifySearchService) Search(ctx context.Context, query string, searchTy
 	if result == nil {
 		return nil, NoResultsFoundErr
 	}
-
-	fmt.Printf("result: %+v\n", result)
 
 	// Cache the result
 	marshaledResult, err := json.Marshal(result)
