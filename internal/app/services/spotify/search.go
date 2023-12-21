@@ -34,7 +34,7 @@ func (s SpotifySearchService) Search(ctx context.Context, query string, searchTy
 	// TODO move?
 	decodedQuery, err := url.QueryUnescape(query)
 	if err != nil {
-		return nil, err //TODO err
+		return nil, err // TODO err
 	}
 
 	// Search for the query
@@ -49,11 +49,11 @@ func (s SpotifySearchService) Search(ctx context.Context, query string, searchTy
 	// Cache the result
 	marshaledResult, err := json.Marshal(result)
 	if err != nil {
-		return nil, err //TODO err
+		return nil, err // TODO err
 	}
 	err = s.cache.Set(ctx, key, marshaledResult, time.Hour*24)
 	if err != nil {
-		return nil, err //TODO err
+		return nil, err // TODO err
 	}
 
 	return result, nil

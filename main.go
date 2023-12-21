@@ -23,8 +23,10 @@ import (
 	"go.opentelemetry.io/otel"
 )
 
-var APIClientLock sync.RWMutex
-var APIClient *spotify.Client
+var (
+	APIClientLock sync.RWMutex
+	APIClient     *spotify.Client
+)
 
 func main() {
 	err := LoadEnv()
@@ -59,9 +61,6 @@ func main() {
 				return otelhttptrace.NewClientTrace(ctx)
 			})),
 	}
-
-	// TODO: renew token
-	// go renewToken(ctx)
 
 	redisClient := goRedis.NewClient(&goRedis.Options{
 		Addr: config.RedisURL,

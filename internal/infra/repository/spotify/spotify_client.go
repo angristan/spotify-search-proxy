@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"sync"
+	"time"
 
 	spotifyLib "github.com/zmb3/spotify/v2"
 	spotifyauth "github.com/zmb3/spotify/v2/auth"
@@ -36,10 +38,11 @@ func NewSpotifyClientConfig(
 type SpotifyClient struct {
 	tracer    trace.Tracer
 	apiClient *spotifyLib.Client
+	config    clientcredentials.Config
 }
 
 func New(ctx context.Context, config *SpotifyClientConfig) *SpotifyClient {
-	spotifyConfig := &clientcredentials.Config{
+	spotifyConfig := clientcredentials.Config{
 		ClientID:     config.clientID,
 		ClientSecret: config.clientSecret,
 		TokenURL:     spotifyauth.TokenURL,
@@ -47,7 +50,7 @@ func New(ctx context.Context, config *SpotifyClientConfig) *SpotifyClient {
 
 	token, err := spotifyConfig.Token(ctx)
 	if err != nil {
-		panic(err) //TODO
+		panic(err) // TODO
 	}
 
 	ctx = context.WithValue(ctx, oauth2.HTTPClient, config.httpClient)
@@ -58,8 +61,14 @@ func New(ctx context.Context, config *SpotifyClientConfig) *SpotifyClient {
 	return &SpotifyClient{
 		apiClient: APIClient,
 		tracer:    config.tracer,
+		config:    spotifyConfig,
 	}
 }
+
+var (
+	SpotifyClientLock   = sync.RWMutex{}
+	InvalidQueryTypeErr = fmt.Errorf("Invalid type")
+)
 
 type SearchType int
 
@@ -79,12 +88,8 @@ func (st SearchType) ToSpotifySearchType() spotifyLib.SearchType {
 		return spotifyLib.SearchTypeTrack
 	}
 
-	return spotifyLib.SearchTypeArtist //TODO
+	return spotifyLib.SearchTypeArtist // TODO
 }
-
-var (
-	InvalidQueryTypeErr = fmt.Errorf("Invalid type")
-)
 
 func (client *SpotifyClient) Search(ctx context.Context, query string, qType string) (interface{}, error) {
 	ctx, span := client.tracer.Start(ctx, "SpotifyClient.Search")
@@ -104,7 +109,11 @@ func (client *SpotifyClient) Search(ctx context.Context, query string, qType str
 
 	spotifyQueryType2 := spotifyQueryType.ToSpotifySearchType()
 
-	// TODO: client.client...
+	err := client.RenewTokenIfNeeded(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("client.RenewTokenIfNeeded: %w", err)
+	}
+
 	results, err := client.apiClient.Search(ctx, query, spotifyQueryType2)
 	if err != nil {
 		return nil, err
@@ -137,4 +146,31 @@ func (client *SpotifyClient) Search(ctx context.Context, query string, qType str
 	return result, nil
 }
 
-// TODO: renew token
+// Check if the token expires soon, and if so recreates an API client with a new token
+func (client *SpotifyClient) RenewTokenIfNeeded(ctx context.Context) error {
+	ctx, span := client.tracer.Start(ctx, "SpotifyClient.RenewTokenIfNeeded")
+	defer span.End()
+
+	span.AddEvent("Checking if Spotify token needs to be renewed")
+
+	spotifyToken, err := client.apiClient.Token()
+	if err != nil {
+		return fmt.Errorf("client.apiClient.Token: %w", err)
+	}
+	if time.Until(spotifyToken.Expiry) > time.Minute*5 {
+		span.AddEvent("Token is still valid, no need to refresh")
+		return nil
+	}
+
+	token, err := client.config.Token(ctx)
+	if err != nil {
+		return fmt.Errorf("client.config.Token: %w", err)
+	}
+
+	httpClient := spotifyauth.New().Client(ctx, token)
+	client.apiClient = spotifyLib.New(httpClient)
+
+	span.AddEvent("Token refreshed")
+
+	return nil
+}

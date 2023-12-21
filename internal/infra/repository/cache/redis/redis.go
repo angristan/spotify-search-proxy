@@ -11,9 +11,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-var (
-	ErrCacheMiss = errors.New("cache: key not found")
-)
+var ErrCacheMiss = errors.New("cache: key not found")
 
 type RedisCache struct {
 	tracer      trace.Tracer
