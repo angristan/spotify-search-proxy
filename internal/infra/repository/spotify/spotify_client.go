@@ -9,6 +9,7 @@ import (
 
 	spotifyLib "github.com/zmb3/spotify/v2"
 	spotifyauth "github.com/zmb3/spotify/v2/auth"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/clientcredentials"
@@ -158,7 +159,9 @@ func (client *SpotifyClient) RenewTokenIfNeeded(ctx context.Context) error {
 		return fmt.Errorf("client.apiClient.Token: %w", err)
 	}
 	if time.Until(spotifyToken.Expiry) > time.Minute*5 {
-		span.AddEvent("Token is still valid, no need to refresh")
+		span.AddEvent("Token is still valid, no need to refresh", trace.WithAttributes(
+			attribute.Float64("minutes_until_expiry", time.Until(spotifyToken.Expiry).Minutes()),
+		))
 		return nil
 	}
 
