@@ -63,7 +63,9 @@ func main() {
 	}
 
 	redisClient := goRedis.NewClient(&goRedis.Options{
-		Addr: config.RedisURL,
+		Addr:     config.RedisAddr,
+		Password: config.RedisPassword,
+		Username: config.RedisUsername,
 	})
 
 	err = redisotel.InstrumentTracing(redisClient)
