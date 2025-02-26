@@ -92,7 +92,7 @@ func (st SearchType) ToSpotifySearchType() spotifyLib.SearchType {
 	return spotifyLib.SearchTypeArtist // TODO
 }
 
-func (client *SpotifyClient) Search(ctx context.Context, query string, qType string) (interface{}, error) {
+func (client *SpotifyClient) Search(ctx context.Context, query string, qType string) (any, error) {
 	ctx, span := client.tracer.Start(ctx, "SpotifyClient.Search")
 	defer span.End()
 
@@ -121,7 +121,7 @@ func (client *SpotifyClient) Search(ctx context.Context, query string, qType str
 	}
 
 	// TODO: better way to do it?
-	var result interface{}
+	var result any
 
 	switch spotifyQueryType2 {
 	case spotifyLib.SearchTypeArtist:

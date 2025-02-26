@@ -11,5 +11,5 @@ type Cache interface {
 }
 
 type SpotifyClient interface {
-	Search(ctx context.Context, query string, searchType string) (interface{}, error)
+	Search(ctx context.Context, query string, searchType string) (any, error)
 }

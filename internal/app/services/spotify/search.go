@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-func (s SpotifySearchService) Search(ctx context.Context, query string, searchType string) (interface{}, error) {
+func (s SpotifySearchService) Search(ctx context.Context, query string, searchType string) (any, error) {
 	ctx, span := s.tracer.Start(ctx, "SpotifySearchService.Search")
 	defer span.End()
 
@@ -23,7 +23,7 @@ func (s SpotifySearchService) Search(ctx context.Context, query string, searchTy
 	key := "spotify:" + searchType + ":" + query
 	val, err := s.cache.Get(ctx, key)
 	if err == nil && val != "" {
-		var cachedResult interface{}
+		var cachedResult any
 		err = json.Unmarshal([]byte(val), &cachedResult)
 		if err == nil {
 			return cachedResult, nil
