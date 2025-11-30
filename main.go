@@ -21,6 +21,8 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/httptrace/otelhttptrace"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/trace"
 )
 
 var (
@@ -38,21 +40,28 @@ func main() {
 
 	ctx := context.Background()
 
-	spanExporter, err := newSpanExporter(ctx)
-	if err != nil {
-		log.Fatalf("failed to initialize exporter: %v", err)
+	var tracerProvider *sdktrace.TracerProvider
+	var tracer trace.Tracer
+
+	if config.TracingEnabled && config.OTLPEndpoint != "" {
+		spanExporter, err := newSpanExporter(ctx, config.OTLPEndpoint)
+		if err != nil {
+			log.Fatalf("failed to initialize exporter: %v", err)
+		}
+
+		tracerProvider, err = newTracerProvider(spanExporter)
+		if err != nil {
+			log.Fatalf("failed to create trace provider: %v", err)
+		}
+
+		defer func() { _ = tracerProvider.Shutdown(ctx) }()
+
+		otel.SetTracerProvider(tracerProvider)
+		tracer = tracerProvider.Tracer("spotify-search-proxy")
+	} else {
+		logrus.Info("Tracing disabled; no OTLP endpoint configured")
+		tracer = otel.Tracer("spotify-search-proxy")
 	}
-
-	tracerProvider, err := newTracerProvider(spanExporter)
-	if err != nil {
-		log.Fatalf("failed to create trace provider: %v", err)
-	}
-
-	defer func() { _ = tracerProvider.Shutdown(ctx) }()
-
-	otel.SetTracerProvider(tracerProvider)
-
-	tracer := tracerProvider.Tracer("spotify-search-proxy")
 
 	tracedHTTPClient := &http.Client{
 		Transport: otelhttp.NewTransport(

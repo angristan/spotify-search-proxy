@@ -18,6 +18,9 @@ type Env struct {
 
 	LogFormat string `env:"LOG_FORMAT" env-default:"json"`
 	LogLevel  string `env:"LOG_LEVEL" env-default:"info"`
+
+	TracingEnabled bool   `env:"TRACING_ENABLED" env-default:"true"`
+	OTLPEndpoint   string `env:"OTEL_EXPORTER_OTLP_ENDPOINT"`
 }
 
 var env Env
