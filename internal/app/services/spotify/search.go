@@ -53,7 +53,7 @@ func (s SpotifySearchService) Search(ctx context.Context, query string, searchTy
 	}
 	err = s.cache.Set(ctx, key, marshaledResult, time.Hour*24)
 	if err != nil {
-		return nil, err // TODO err
+		span.RecordError(err)
 	}
 
 	return result, nil
