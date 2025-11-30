@@ -1,8 +1,10 @@
 package spotify
 
 import (
+	"errors"
 	"net/http"
 
+	appspotify "github.com/angristan/spotify-search-proxy/internal/app/services/spotify"
 	"github.com/gin-gonic/gin"
 )
 
@@ -24,7 +26,22 @@ func (h *SpotifyHandler) Search(c *gin.Context) {
 
 	result, err := h.spotifySearchService.Search(ctx, query, qType)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		status := http.StatusInternalServerError
+		message := "internal server error"
+
+		switch {
+		case errors.Is(err, appspotify.InvalidQueryTypeErr):
+			status = http.StatusBadRequest
+			message = "invalid search type"
+		case errors.Is(err, appspotify.NoResultsFoundErr):
+			status = http.StatusNotFound
+			message = "no results found"
+		case errors.Is(err, appspotify.SpotifyClientErr):
+			status = http.StatusBadGateway
+			message = "spotify client error"
+		}
+
+		c.JSON(status, gin.H{"error": message})
 		return
 	}
 
