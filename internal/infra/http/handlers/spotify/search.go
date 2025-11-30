@@ -3,6 +3,7 @@ package spotify
 import (
 	"errors"
 	"net/http"
+	"strings"
 
 	appspotify "github.com/angristan/spotify-search-proxy/internal/app/services/spotify"
 	"github.com/gin-gonic/gin"
@@ -18,7 +19,7 @@ func (h *SpotifyHandler) Search(c *gin.Context) {
 		return
 	}
 
-	query := c.Param("query")
+	query := strings.TrimPrefix(c.Param("query"), "/")
 	if query == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "query is required"})
 		return

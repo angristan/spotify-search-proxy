@@ -27,7 +27,7 @@ func New(cfg Config, sh SpotifyHandler) *Server {
 		engine.Use(otelgin.Middleware("spotify-search-proxy"))
 	}
 
-	engine.GET("/search/:type/:query", sh.Search)
+	engine.GET("/search/:type/*query", sh.Search)
 
 	internalServer := &http.Server{
 		Addr:    fmt.Sprintf("0.0.0.0:%d", httpPort),
