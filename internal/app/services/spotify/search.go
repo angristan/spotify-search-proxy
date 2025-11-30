@@ -16,7 +16,7 @@ func (s SpotifySearchService) Search(ctx context.Context, query string, searchTy
 	switch searchType {
 	case "artist", "album", "track":
 	default:
-		return nil, fmt.Errorf("%w: %s", InvalidQueryTypeErr, searchType)
+		return nil, fmt.Errorf("%w: %s", ErrInvalidQueryType, searchType)
 	}
 
 	// Check if the result is cached
@@ -40,10 +40,10 @@ func (s SpotifySearchService) Search(ctx context.Context, query string, searchTy
 	// Search for the query
 	result, err := s.spotifyClient.Search(ctx, decodedQuery, searchType)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %s", SpotifyClientErr, err.Error())
+		return nil, fmt.Errorf("%w: %s", ErrSpotifyClient, err.Error())
 	}
 	if result == nil {
-		return nil, NoResultsFoundErr
+		return nil, ErrNoResultsFound
 	}
 
 	// Cache the result

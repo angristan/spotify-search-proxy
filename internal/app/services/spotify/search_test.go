@@ -26,7 +26,7 @@ func TestSpotifySearchService_Search(t *testing.T) {
 
 	t.Run("invalid query type", func(t *testing.T) {
 		_, err := s.Search(context.TODO(), "test", "invalid")
-		assert.ErrorIs(t, err, spotify.InvalidQueryTypeErr)
+		assert.ErrorIs(t, err, spotify.ErrInvalidQueryType)
 	})
 
 	t.Run("no results found", func(t *testing.T) {
@@ -43,7 +43,7 @@ func TestSpotifySearchService_Search(t *testing.T) {
 			Once()
 
 		_, err := s.Search(context.Background(), "TWICE", "artist")
-		assert.ErrorIs(t, err, spotify.NoResultsFoundErr)
+		assert.ErrorIs(t, err, spotify.ErrNoResultsFound)
 	})
 
 	t.Run("spotify client error", func(t *testing.T) {
@@ -56,11 +56,11 @@ func TestSpotifySearchService_Search(t *testing.T) {
 		mockedSpotifyClient.On("Search",
 			mock.Anything, "TWICE", "artist",
 		).
-			Return(nil, spotify.SpotifyClientErr).
+			Return(nil, spotify.ErrSpotifyClient).
 			Once()
 
 		_, err := s.Search(context.Background(), "TWICE", "artist")
-		assert.ErrorIs(t, err, spotify.SpotifyClientErr)
+		assert.ErrorIs(t, err, spotify.ErrSpotifyClient)
 	})
 
 	t.Run("cache miss", func(t *testing.T) {
