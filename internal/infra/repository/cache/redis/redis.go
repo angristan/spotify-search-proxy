@@ -42,12 +42,13 @@ func (c *RedisCache) Get(ctx context.Context, key string) (string, error) {
 
 	value, err := c.redisClient.Get(ctx, key).Result()
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
-		if err == redis.Nil {
+		if errors.Is(err, redis.Nil) {
+			span.SetStatus(codes.Ok, "Cache miss")
 			return "", ErrCacheMiss
 		}
 
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return "", err
 	}
 
