@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"net/url"
 
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 	"go.opentelemetry.io/otel/sdk/resource"
@@ -9,10 +10,23 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
 )
 
-func newSpanExporter(ctx context.Context) (trace.SpanExporter, error) {
+func newSpanExporter(ctx context.Context, endpoint string) (trace.SpanExporter, error) {
+	if parsed, err := url.Parse(endpoint); err == nil && parsed.Scheme != "" {
+		opts := []otlptracehttp.Option{
+			otlptracehttp.WithEndpoint(parsed.Host),
+		}
+		if parsed.Scheme == "http" {
+			opts = append(opts, otlptracehttp.WithInsecure())
+		}
+		if parsed.Path != "" && parsed.Path != "/" {
+			opts = append(opts, otlptracehttp.WithURLPath(parsed.Path))
+		}
+		return otlptracehttp.New(ctx, opts...)
+	}
+
 	return otlptracehttp.New(ctx,
 		otlptracehttp.WithInsecure(),
-		otlptracehttp.WithEndpoint("tempo:4318"), //TODO: Use env var
+		otlptracehttp.WithEndpoint(endpoint),
 	)
 }
 
