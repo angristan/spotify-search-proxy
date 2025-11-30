@@ -31,7 +31,7 @@ var (
 func main() {
 	err := LoadEnv()
 	if err != nil {
-		logrus.WithError(err).Warn("Failed to load environment variables")
+		logrus.WithError(err).Fatal("Failed to load environment variables")
 	}
 
 	config := GetEnv()
