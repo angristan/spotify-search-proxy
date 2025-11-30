@@ -67,10 +67,6 @@ func New(ctx context.Context, config *SpotifyClientConfig) (*SpotifyClient, erro
 	}, nil
 }
 
-var (
-	InvalidQueryTypeErr = fmt.Errorf("Invalid type")
-)
-
 type SearchType int
 
 const (
@@ -105,7 +101,7 @@ func (client *SpotifyClient) Search(ctx context.Context, query string, qType str
 	case "track":
 		spotifyQueryType = SearchTypeTrack
 	default:
-		return nil, fmt.Errorf("%w: %s", InvalidQueryTypeErr, qType)
+		return nil, fmt.Errorf("unsupported search type: %s", qType)
 	}
 
 	spotifyQueryType2 := spotifyQueryType.ToSpotifySearchType()
