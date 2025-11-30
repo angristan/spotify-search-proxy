@@ -16,18 +16,15 @@ var ErrCacheMiss = errors.New("cache: key not found")
 type RedisCache struct {
 	tracer      trace.Tracer
 	redisClient *redis.Client
-	defaultTTL  time.Duration
 }
 
 func New(
 	tracer trace.Tracer,
 	redisClient *redis.Client,
-	defaultTTL time.Duration,
 ) *RedisCache {
 	return &RedisCache{
 		tracer:      tracer,
 		redisClient: redisClient,
-		defaultTTL:  defaultTTL,
 	}
 }
 
@@ -64,9 +61,6 @@ func (c *RedisCache) Set(ctx context.Context, key string, value []byte, ttl time
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	if ttl == 0 {
-		ttl = c.defaultTTL
-	}
 	span.SetAttributes(attribute.Int64("ttl", int64(ttl.Seconds())))
 
 	return c.redisClient.Set(ctx, key, value, ttl).Err()

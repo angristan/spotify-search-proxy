@@ -5,7 +5,6 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptrace"
-	"time"
 
 	spotifyService "github.com/angristan/spotify-search-proxy/internal/app/services/spotify"
 	server "github.com/angristan/spotify-search-proxy/internal/infra/http"
@@ -74,7 +73,7 @@ func main() {
 		logrus.WithError(err).Fatal("Failed to instrument Redis tracing")
 	}
 
-	cache := redisCache.New(tracer, redisClient, 1*time.Minute)
+	cache := redisCache.New(tracer, redisClient)
 
 	spotifyClientConfig := spotifyClient.NewSpotifyClientConfig(
 		config.SpotifyClientID,
