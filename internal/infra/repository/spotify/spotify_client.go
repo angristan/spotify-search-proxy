@@ -40,6 +40,7 @@ type SpotifyClient struct {
 	tracer    trace.Tracer
 	apiClient *spotifyLib.Client
 	config    clientcredentials.Config
+	mu        sync.RWMutex
 }
 
 func New(ctx context.Context, config *SpotifyClientConfig) *SpotifyClient {
@@ -67,7 +68,6 @@ func New(ctx context.Context, config *SpotifyClientConfig) *SpotifyClient {
 }
 
 var (
-	SpotifyClientLock   = sync.RWMutex{}
 	InvalidQueryTypeErr = fmt.Errorf("Invalid type")
 )
 
@@ -115,7 +115,8 @@ func (client *SpotifyClient) Search(ctx context.Context, query string, qType str
 		return nil, fmt.Errorf("client.RenewTokenIfNeeded: %w", err)
 	}
 
-	results, err := client.apiClient.Search(ctx, query, spotifyQueryType2)
+	apiClient := client.getAPIClient()
+	results, err := apiClient.Search(ctx, query, spotifyQueryType2)
 	if err != nil {
 		return nil, err
 	}
@@ -154,7 +155,8 @@ func (client *SpotifyClient) RenewTokenIfNeeded(ctx context.Context) error {
 
 	span.AddEvent("Checking if Spotify token needs to be renewed")
 
-	spotifyToken, err := client.apiClient.Token()
+	apiClient := client.getAPIClient()
+	spotifyToken, err := apiClient.Token()
 	if err != nil {
 		return fmt.Errorf("client.apiClient.Token: %w", err)
 	}
@@ -171,9 +173,21 @@ func (client *SpotifyClient) RenewTokenIfNeeded(ctx context.Context) error {
 	}
 
 	httpClient := spotifyauth.New().Client(ctx, token)
-	client.apiClient = spotifyLib.New(httpClient)
+	client.setAPIClient(spotifyLib.New(httpClient))
 
 	span.AddEvent("Token refreshed")
 
 	return nil
+}
+
+func (client *SpotifyClient) getAPIClient() *spotifyLib.Client {
+	client.mu.RLock()
+	defer client.mu.RUnlock()
+	return client.apiClient
+}
+
+func (client *SpotifyClient) setAPIClient(apiClient *spotifyLib.Client) {
+	client.mu.Lock()
+	defer client.mu.Unlock()
+	client.apiClient = apiClient
 }
