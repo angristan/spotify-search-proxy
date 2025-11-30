@@ -31,13 +31,13 @@ func (h *SpotifyHandler) Search(c *gin.Context) {
 		message := "internal server error"
 
 		switch {
-		case errors.Is(err, appspotify.InvalidQueryTypeErr):
+		case errors.Is(err, appspotify.ErrInvalidQueryType):
 			status = http.StatusBadRequest
 			message = "invalid search type"
-		case errors.Is(err, appspotify.NoResultsFoundErr):
+		case errors.Is(err, appspotify.ErrNoResultsFound):
 			status = http.StatusNotFound
 			message = "no results found"
-		case errors.Is(err, appspotify.SpotifyClientErr):
+		case errors.Is(err, appspotify.ErrSpotifyClient):
 			status = http.StatusBadGateway
 			message = "spotify client error"
 		}

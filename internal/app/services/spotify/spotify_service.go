@@ -25,7 +25,7 @@ func New(
 }
 
 var (
-	InvalidQueryTypeErr = fmt.Errorf("Invalid query type")
-	NoResultsFoundErr   = fmt.Errorf("No results found")
-	SpotifyClientErr    = fmt.Errorf("Spotify client error")
+	ErrInvalidQueryType = fmt.Errorf("invalid query type")
+	ErrNoResultsFound   = fmt.Errorf("no results found")
+	ErrSpotifyClient    = fmt.Errorf("spotify client error")
 )
