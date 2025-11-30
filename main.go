@@ -12,7 +12,6 @@ import (
 	spotifyHandler "github.com/angristan/spotify-search-proxy/internal/infra/http/handlers/spotify"
 	redisCache "github.com/angristan/spotify-search-proxy/internal/infra/repository/cache/redis"
 	spotifyClient "github.com/angristan/spotify-search-proxy/internal/infra/repository/spotify"
-	"github.com/gofiber/fiber/v2/log"
 	"github.com/redis/go-redis/extra/redisotel/v9"
 	goRedis "github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
@@ -39,12 +38,12 @@ func main() {
 	if config.TracingEnabled && config.OTLPEndpoint != "" {
 		spanExporter, err := newSpanExporter(ctx, config.OTLPEndpoint)
 		if err != nil {
-			log.Fatalf("failed to initialize exporter: %v", err)
+			logrus.Fatalf("failed to initialize exporter: %v", err)
 		}
 
 		tracerProvider, err = newTracerProvider(spanExporter)
 		if err != nil {
-			log.Fatalf("failed to create trace provider: %v", err)
+			logrus.Fatalf("failed to create trace provider: %v", err)
 		}
 
 		defer func() { _ = tracerProvider.Shutdown(ctx) }()
