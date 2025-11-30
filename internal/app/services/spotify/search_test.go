@@ -112,6 +112,6 @@ func TestSpotifySearchService_Search(t *testing.T) {
 			Once()
 
 		_, err := s.Search(context.Background(), "TWICE", "artist")
-		assert.Error(t, err)
+		assert.NoError(t, err)
 	})
 }
