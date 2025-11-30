@@ -5,7 +5,6 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptrace"
-	"sync"
 	"time"
 
 	spotifyService "github.com/angristan/spotify-search-proxy/internal/app/services/spotify"
@@ -17,17 +16,11 @@ import (
 	"github.com/redis/go-redis/extra/redisotel/v9"
 	goRedis "github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
-	"github.com/zmb3/spotify/v2"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/httptrace/otelhttptrace"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/trace"
-)
-
-var (
-	APIClientLock sync.RWMutex
-	APIClient     *spotify.Client
 )
 
 func main() {
