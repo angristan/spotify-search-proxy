@@ -72,7 +72,7 @@ func main() {
 
 	err = redisotel.InstrumentTracing(redisClient)
 	if err != nil {
-		panic(err)
+		logrus.WithError(err).Fatal("Failed to instrument Redis tracing")
 	}
 
 	cache := redisCache.New(tracer, redisClient, 1*time.Minute)
@@ -84,7 +84,10 @@ func main() {
 		tracer,
 	)
 
-	spotifyClient := spotifyClient.New(ctx, spotifyClientConfig)
+	spotifyClient, err := spotifyClient.New(ctx, spotifyClientConfig)
+	if err != nil {
+		logrus.WithError(err).Fatal("Failed to create Spotify client")
+	}
 
 	spotifyService := spotifyService.New(tracer, spotifyClient, cache)
 
@@ -92,9 +95,12 @@ func main() {
 
 	serverConfig := server.NewConfig(config.Port, false)
 
-	httpServer := server.New(serverConfig, spotifyHandler)
+	httpServer, err := server.New(serverConfig, spotifyHandler)
+	if err != nil {
+		logrus.WithError(err).Fatal("Failed to create HTTP server")
+	}
 
 	if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		panic(err)
+		logrus.WithError(err).Fatal("HTTP server failed")
 	}
 }

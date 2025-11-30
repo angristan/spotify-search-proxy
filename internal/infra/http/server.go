@@ -14,12 +14,12 @@ type Server struct {
 	*http.Server
 }
 
-func New(cfg Config, sh SpotifyHandler) *Server {
+func New(cfg Config, sh SpotifyHandler) (*Server, error) {
 	engine := gin.New()
 
 	httpPort, err := strconv.Atoi(cfg.Port)
 	if err != nil {
-		panic(err) //TODO
+		return nil, fmt.Errorf("invalid port %q: %w", cfg.Port, err)
 	}
 
 	if !cfg.disableMiddleware {
@@ -39,5 +39,5 @@ func New(cfg Config, sh SpotifyHandler) *Server {
 		IdleTimeout:       60 * time.Second,
 	}
 
-	return &Server{internalServer}
+	return &Server{internalServer}, nil
 }
