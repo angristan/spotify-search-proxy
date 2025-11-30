@@ -3,6 +3,7 @@ package redis
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -46,7 +47,7 @@ func (c *RedisCache) Get(ctx context.Context, key string) (string, error) {
 
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
-		return "", err
+		return "", fmt.Errorf("redis get %q: %w", key, err)
 	}
 
 	span.SetAttributes(attribute.Int("value_length", len(value)))
@@ -63,5 +64,9 @@ func (c *RedisCache) Set(ctx context.Context, key string, value []byte, ttl time
 
 	span.SetAttributes(attribute.Int64("ttl", int64(ttl.Seconds())))
 
-	return c.redisClient.Set(ctx, key, value, ttl).Err()
+	err := c.redisClient.Set(ctx, key, value, ttl).Err()
+	if err != nil {
+		return fmt.Errorf("redis set %q: %w", key, err)
+	}
+	return nil
 }
