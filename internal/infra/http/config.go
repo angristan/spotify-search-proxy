@@ -11,6 +11,6 @@ func NewConfig(
 ) Config {
 	return Config{
 		Port:              port,
-		disableMiddleware: false,
+		disableMiddleware: disableMiddleware,
 	}
 }
