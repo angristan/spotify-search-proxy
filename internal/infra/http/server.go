@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
@@ -30,8 +31,12 @@ func New(cfg Config, sh SpotifyHandler) *Server {
 	engine.GET("/search/:type/*query", sh.Search)
 
 	internalServer := &http.Server{
-		Addr:    fmt.Sprintf("0.0.0.0:%d", httpPort),
-		Handler: engine,
+		Addr:              fmt.Sprintf("0.0.0.0:%d", httpPort),
+		Handler:           engine,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       10 * time.Second,
+		WriteTimeout:      15 * time.Second,
+		IdleTimeout:       60 * time.Second,
 	}
 
 	return &Server{internalServer}
