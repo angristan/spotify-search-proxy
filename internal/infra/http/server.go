@@ -28,6 +28,10 @@ func New(cfg Config, sh SpotifyHandler) (*Server, error) {
 		engine.Use(otelgin.Middleware("spotify-search-proxy"))
 	}
 
+	engine.GET("/health", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	})
+
 	engine.GET("/search/:type/*query", sh.Search)
 
 	internalServer := &http.Server{
