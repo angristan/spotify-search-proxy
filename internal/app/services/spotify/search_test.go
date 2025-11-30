@@ -25,7 +25,7 @@ func TestSpotifySearchService_Search(t *testing.T) {
 	)
 
 	t.Run("invalid query type", func(t *testing.T) {
-		_, err := s.Search(context.TODO(), "test", "invalid")
+		_, err := s.Search(context.Background(), "test", "invalid")
 		assert.ErrorIs(t, err, spotify.ErrInvalidQueryType)
 	})
 
