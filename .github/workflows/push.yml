@@ -48,7 +48,7 @@ jobs:
 
   deploy:
     name: Deploy app to fly
-    needs: [build, lint]
+    needs: [build, test, lint]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     steps:
