@@ -43,7 +43,7 @@ type SpotifyClient struct {
 	mu        sync.RWMutex
 }
 
-func New(ctx context.Context, config *SpotifyClientConfig) *SpotifyClient {
+func New(ctx context.Context, config *SpotifyClientConfig) (*SpotifyClient, error) {
 	spotifyConfig := clientcredentials.Config{
 		ClientID:     config.clientID,
 		ClientSecret: config.clientSecret,
@@ -52,7 +52,7 @@ func New(ctx context.Context, config *SpotifyClientConfig) *SpotifyClient {
 
 	token, err := spotifyConfig.Token(ctx)
 	if err != nil {
-		panic(err) // TODO
+		return nil, fmt.Errorf("failed to get initial Spotify token: %w", err)
 	}
 
 	ctx = context.WithValue(ctx, oauth2.HTTPClient, config.httpClient)
@@ -64,7 +64,7 @@ func New(ctx context.Context, config *SpotifyClientConfig) *SpotifyClient {
 		apiClient: APIClient,
 		tracer:    config.tracer,
 		config:    spotifyConfig,
-	}
+	}, nil
 }
 
 var (
